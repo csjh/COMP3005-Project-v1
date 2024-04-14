@@ -1172,7 +1172,8 @@ def tables():
             CREATE TABLE IF NOT EXISTS managed_by (
                 manager_id INTEGER REFERENCES managers(manager_id),
                 match_id INTEGER REFERENCES matches(match_id),
-                team_id INTEGER REFERENCES teams(team_id)
+                team_id INTEGER REFERENCES teams(team_id),
+                PRIMARY KEY (manager_id, match_id, team_id)
             )
         """
         )
@@ -1207,7 +1208,8 @@ def tables():
                 card_type card_enum NOT NULL,
                 time TEXT NOT NULL,
                 reason TEXT NOT NULL,
-                period INTEGER NOT NULL
+                period INTEGER NOT NULL,
+                PRIMARY KEY (player_id, match_id, card_type, time)
             )
         """
         )
@@ -1222,14 +1224,15 @@ def tables():
                 from_period INTEGER NOT NULL,
                 to_period INTEGER,
                 start_reason TEXT NOT NULL,
-                end_reason TEXT NOT NULL
+                end_reason TEXT NOT NULL,
+                PRIMARY KEY (player_id, match_id, position, from_, from_period)
             )
         """
         )
 
         # EVENTS
         for event in TABLES:
-            cursor.execute("DROP TABLE IF EXISTS " + event)
+            cursor.execute(f"DROP TABLE IF EXISTS {event}")
             cursor.execute(
                 f"""
                 CREATE TABLE IF NOT EXISTS {event} (
@@ -1276,7 +1279,8 @@ def tables():
                 match_id INTEGER,
                 tactical_shift_id UUID,
                 player_id INTEGER REFERENCES players(player_id),
-                FOREIGN KEY (match_id, tactical_shift_id) REFERENCES tactical_shifts(match_id, id)
+                FOREIGN KEY (match_id, tactical_shift_id) REFERENCES tactical_shifts(match_id, id),
+                PRIMARY KEY (tactical_shift_id, player_id)
             )
         """
         )
@@ -1287,7 +1291,18 @@ def tables():
                 match_id INTEGER,
                 starting_xis_id UUID,
                 player_id INTEGER REFERENCES players(player_id),
-                FOREIGN KEY (match_id, starting_xis_id) REFERENCES starting_xis(match_id, id)
+                FOREIGN KEY (match_id, starting_xis_id) REFERENCES starting_xis(match_id, id),
+                PRIMARY KEY (starting_xis_id, player_id)
+            )
+        """
+        )
+
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS related_events (
+                origin UUID,
+                target UUID,
+                PRIMARY KEY (origin, target)
             )
         """
         )
@@ -1628,6 +1643,12 @@ def data():
                                 "INSERT INTO tactical_shifts_lineup(match_id, tactical_shift_id, player_id) VALUES (%s, %s, %s)",
                                 (match_id, event["id"], player["player"]["id"]),
                             )
+                    
+                    for related in event.get("related_events", []):
+                        cursor.execute(
+                            "INSERT INTO related_events(origin, target) VALUES (%s, %s)",
+                            (event["id"], related),
+                        )
 
     conn.commit()
 
