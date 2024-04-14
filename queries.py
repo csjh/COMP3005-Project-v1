@@ -186,7 +186,6 @@ def Q_1(conn, execution_time):
             player_name as name, AVG(shots.shot_statsbomb_xg) as xg_score
         FROM players JOIN shots_la_liga_20_21_season as shots
         ON players.player_id = shots.player_id
-        WHERE match_id IN (SELECT * FROM la_liga_single)
         GROUP BY players.player_id
         ORDER BY xg_score DESC
     """
@@ -217,7 +216,6 @@ def Q_2(conn, execution_time):
             player_name as name, COUNT(*) as shot_count
         FROM players JOIN shots_la_liga_20_21_season as shots
         ON players.player_id = shots.player_id
-        WHERE match_id IN (SELECT * FROM la_liga_single)
         GROUP BY players.player_id
         ORDER BY shot_count DESC
     """
@@ -306,11 +304,14 @@ def Q_5(conn, execution_time):
     # Enter QUERY within the quotes:
 
     query = """
-        SELECT
-            player_name as name, COUNT(*) as intended_pass_count
-        FROM players JOIN passes_premier_03_04_season as passes
-        ON players.player_id = passes.pass_recipient_id
-        GROUP BY players.player_id
+        WITH counted_passes AS (
+            SELECT pass_recipient_id, COUNT(*) as intended_pass_count
+            FROM passes_premier_03_04_season as passes
+            GROUP BY pass_recipient_id
+        )
+        SELECT player_name as name, intended_pass_count
+        FROM players JOIN counted_passes
+        ON players.player_id = counted_passes.pass_recipient_id
         ORDER BY intended_pass_count DESC
     """
 
@@ -457,9 +458,8 @@ def Q_10(conn, execution_time):
     query = """
         SELECT
             player_name as name, COUNT(*) as dribbled_past_count
-        FROM players JOIN dribbled_pasts
+        FROM players JOIN dribbled_pasts_la_liga_20_21_season as dribbled_pasts
         ON players.player_id = dribbled_pasts.player_id
-        WHERE match_id IN (SELECT * FROM la_liga_single)
         GROUP BY players.player_id
         ORDER BY dribbled_past_count
     """
